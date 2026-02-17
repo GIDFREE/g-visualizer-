@@ -1,50 +1,44 @@
-let recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'he-IL';
-        recognition.continuous = true;
-        recognition.interimResults = true;
+import os
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+import google.generativeai as genai
 
-        let accumulatedTranscript = "";
-        let isProcessing = false;
+app = FastAPI()
 
-        // קוצב זמן שבודק כל 5 שניות אם יש טקסט חדש לעבד
-        setInterval(() => {
-            if (accumulatedTranscript.trim().length > 10 && !isProcessing) {
-                const textToProcess = accumulatedTranscript;
-                accumulatedTranscript = ""; // איפוס המצבור
-                sendToRender(textToProcess);
-            }
-        }, 5000); 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        recognition.onresult = (event) => {
-            let interimTranscript = "";
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    accumulatedTranscript += event.results[i][0].transcript + " ";
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
-            }
-            liveText.innerText = accumulatedTranscript + interimTranscript;
-        };
+# הגדרת Gemini עם המפתח שלך
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-        async function sendToRender(text) {
-            isProcessing = true;
-            status.innerText = "מנתח מקטע טקסט...";
-            try {
-                const response = await fetch('https://g-visualizer-app.onrender.com/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text })
-                });
-                const data = await response.json();
-                if (data.image_url) {
-                    outputImg.src = data.image_url;
-                    outputImg.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    status.innerText = "איור עודכן אוטומטית";
-                }
-            } catch (err) {
-                console.error("Error:", err);
-            }
-            isProcessing = false;
-        }
+@app.post("/generate")
+async def generate(request: Request):
+    try:
+        data = await request.json()
+        user_text = data.get("text", "")
+        
+        if not user_text:
+            return {"error": "No text provided"}
+
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        # הפקודה ליצירת מילת מפתח אחת באנגלית מכל מקטע טקסט
+        prompt = f"Convert this text into ONE simple English noun for image generation: {user_text}"
+        response = model.generate_content(prompt)
+        
+        # ניקוי המילה מסימנים מיותרים
+        keyword = response.text.strip().split()[0]
+        image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
+        
+        return {"image_url": image_url, "keyword": keyword}
+    except Exception as e:
+        return {"error": str(e)}
+
+if __name__ == "__main__":
+    import uvicorn
+    # שימוש בפורט ש-Render דורש
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
