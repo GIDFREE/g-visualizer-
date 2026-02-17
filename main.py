@@ -3,6 +3,7 @@ import google.generativeai as genai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import urllib.parse
+import re
 
 app = FastAPI()
 
@@ -22,18 +23,20 @@ async def generate(request: Request):
     
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
-        # כאן אנחנו מזקקים את הטקסט הארוך לתיאור קצר באנגלית
-        refining_prompt = f"Summarize this text into 3 specific English keywords for an image generator: {user_text}"
+        # פקודה שמכריחה את המודל להוציא רק 2-3 מילים באנגלית
+        refining_prompt = f"Convert this text into exactly 3 English keywords for an image: {user_text}. Output ONLY keywords."
         summary_response = model.generate_content(refining_prompt)
-        keywords = summary_response.text.strip().replace(" ", ",")
         
-        # יצירת כתובת תקנית (Encoded) כדי שהדפדפן לא יישבר
-        encoded_keywords = urllib.parse.quote(keywords)
+        # ניקוי הטקסט מסימנים מיוחדים
+        clean_keywords = re.sub(r'[^a-zA-Z\s]', '', summary_response.text).strip().replace(" ", ",")
+        
+        # יצירת הכתובת בצורה בטוחה
+        encoded_keywords = urllib.parse.quote(clean_keywords)
         image_url = f"https://pollinations.ai/p/{encoded_keywords}?width=1024&height=1024&nologo=true"
         
         return {"image_url": image_url, "status": "success"}
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e), "status": "failed"}
 
 if __name__ == "__main__":
     import uvicorn
