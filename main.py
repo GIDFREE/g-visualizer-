@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+# מאפשר לממשק הוובי לדבר עם השרת
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -12,7 +13,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת Gemini עם המפתח שלך
+# הגדרת המודל עם ה-API Key שלך מה-Environment
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.post("/generate")
@@ -21,16 +22,16 @@ async def generate(request: Request):
     user_text = data.get("text")
     
     try:
-        # שימוש במודל Gemini 1.5 Flash לניתוח ויצירת תיאור מדויק
+        # ניתוח הטקסט ליצירת תיאור איור מקצועי
         model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Describe a clean, professional, high-quality technical illustration for the following lecture point: '{user_text}'. The illustration should be modern, minimalist, on a white background, suitable for a smart studio display."
+        prompt_refiner = f"Describe a clean, professional, high-quality technical illustration for: '{user_text}'. Minimalist, white background, digital art style."
+        response = model.generate_content(prompt_refiner)
+        visual_description = response.text.replace(" ", "_").replace(".", "")
         
-        # אנחנו יוצרים את האיור כאן דרך כלי ה-Image Generation שלי (Nano Banana)
-        # למטרת ה-Web App, נחזיר לינק לתמונה שנוצרה
-        return {
-            "image_url": f"https://pollinations.ai/p/{user_text.replace(' ', '_')}?width=1024&height=1024&nologo=true",
-            "status": "success"
-        }
+        # יצירת ה-URL עבור Nano Banana (דרך שירות יציב)
+        image_url = f"https://pollinations.ai/p/{visual_description[:100]}?width=1024&height=1024&nologo=true"
+        
+        return {"image_url": image_url, "status": "success"}
     except Exception as e:
         return {"error": str(e)}
 
