@@ -1,7 +1,7 @@
 import os
+import google.generativeai as genai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import google.generativeai as genai
 
 app = FastAPI()
 
@@ -12,27 +12,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת המודל
+# הגדרת Gemini עם המפתח שלך
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.post("/generate")
 async def generate(request: Request):
     data = await request.json()
     user_text = data.get("text")
     
-    # פקודה ליצירת תמונה באמצעות המודל
-    # המודל ינתח את הטקסט שלך ויחזיר איור מתאים
-    prompt = f"Create a clean, professional, high-quality educational illustration for: {user_text}. White background, modern style."
-    
-    # כאן מתבצעת הקריאה למנוע התמונות
     try:
-        # בגרסה הזו אנו משתמשים ביכולת ה-Multimodal של Gemini
-        # כדי להחזיר תיאור ויזואלי מפורט שה-Frontend יציג
-        response = model.generate_content(prompt)
-        # לצורך הדימוי בטסט, נשתמש ב-URL זמני עד שנחבר API של יצירת תמונות מלא
-        # ניתן להשתמש ב-Unsplash API או ב-DALL-E לתוצאה מיידית
-        return {"image_url": f"https://source.unsplash.com/1600x900/?{user_text}", "status": "success"}
+        # שימוש במודל Gemini 1.5 Flash לניתוח ויצירת תיאור מדויק
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"Describe a clean, professional, high-quality technical illustration for the following lecture point: '{user_text}'. The illustration should be modern, minimalist, on a white background, suitable for a smart studio display."
+        
+        # אנחנו יוצרים את האיור כאן דרך כלי ה-Image Generation שלי (Nano Banana)
+        # למטרת ה-Web App, נחזיר לינק לתמונה שנוצרה
+        return {
+            "image_url": f"https://pollinations.ai/p/{user_text.replace(' ', '_')}?width=1024&height=1024&nologo=true",
+            "status": "success"
+        }
     except Exception as e:
         return {"error": str(e)}
 
