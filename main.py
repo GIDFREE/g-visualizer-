@@ -2,10 +2,10 @@ import os
 import google.generativeai as genai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+import urllib.parse
 
 app = FastAPI()
 
-# מאפשר לממשק הוובי לדבר עם השרת
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,23 +13,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת המודל עם ה-API Key שלך מה-Environment
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.post("/generate")
 async def generate(request: Request):
     data = await request.json()
-    user_text = data.get("text")
+    user_text = data.get("text", "")
     
     try:
-        # ניתוח הטקסט ליצירת תיאור איור מקצועי
         model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt_refiner = f"Describe a clean, professional, high-quality technical illustration for: '{user_text}'. Minimalist, white background, digital art style."
-        response = model.generate_content(prompt_refiner)
-        visual_description = response.text.replace(" ", "_").replace(".", "")
+        # כאן אנחנו מזקקים את הטקסט הארוך לתיאור קצר באנגלית
+        refining_prompt = f"Summarize this text into 3 specific English keywords for an image generator: {user_text}"
+        summary_response = model.generate_content(refining_prompt)
+        keywords = summary_response.text.strip().replace(" ", ",")
         
-        # יצירת ה-URL עבור Nano Banana (דרך שירות יציב)
-        image_url = f"https://pollinations.ai/p/{visual_description[:100]}?width=1024&height=1024&nologo=true"
+        # יצירת כתובת תקנית (Encoded) כדי שהדפדפן לא יישבר
+        encoded_keywords = urllib.parse.quote(keywords)
+        image_url = f"https://pollinations.ai/p/{encoded_keywords}?width=1024&height=1024&nologo=true"
         
         return {"image_url": image_url, "status": "success"}
     except Exception as e:
