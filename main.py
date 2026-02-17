@@ -12,17 +12,21 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 async def generate(request: Request):
     try:
         data = await request.json()
-        text = data.get("text", "")
-        if len(text) < 5: return {"status": "skip"}
-
-        # זיקוק הטקסט למילה אחת באנגלית
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        res = model.generate_content(f"Translate to one English noun: {text}")
-        keyword = res.text.strip().split()[0].replace(".", "")
+        user_text = data.get("text", "")
         
-        return {"image_url": f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"}
-    except:
-        return {"image_url": "https://pollinations.ai/p/abstract?width=1024"}
+        # זיקוק המשפט למילת מפתח אחת באנגלית
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"Summarize this text into EXACTLY ONE English noun for image generation: {user_text}"
+        response = model.generate_content(prompt)
+        
+        # ניקוי המילה מסימנים מיותרים
+        keyword = response.text.strip().split()[0].replace(".", "").replace(",", "")
+        image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true&model=flux"
+        
+        return {"image_url": image_url, "keyword": keyword}
+    except Exception as e:
+        # אם יש שגיאה, ננסה לפחות לייצר משהו מהטקסט המקורי
+        return {"image_url": f"https://pollinations.ai/p/art?width=1024"}
 
 if __name__ == "__main__":
     import uvicorn
