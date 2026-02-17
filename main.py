@@ -1,7 +1,7 @@
 import os
+import google.generativeai as genai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import google.generativeai as genai
 import re
 
 app = FastAPI()
@@ -13,6 +13,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# הגדרת Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.post("/generate")
@@ -21,16 +22,20 @@ async def generate(request: Request):
         data = await request.json()
         user_text = data.get("text", "")
         
-        if len(user_text) < 5:
-            return {"status": "skip", "reason": "text too short"}
+        # דילוג על מקטעים קצרים מדי
+        if len(user_text) < 10:
+            return {"status": "waiting", "message": "More text needed"}
 
         model = genai.GenerativeModel('gemini-1.5-flash')
-        # הפקודה שמזקקת את המקטע למילה אחת ברורה
-        prompt = f"Summarize this lecture snippet into ONE simple English noun for an image: {user_text}"
+        # הוראה מפורשת למודל להוציא רק מילה אחת באנגלית
+        prompt = f"Summary this text into EXACTLY ONE simple English noun for an image: {user_text}"
         response = model.generate_content(prompt)
         
-        # ניקוי תווים מיוחדים מהתשובה
-        keyword = re.sub(r'[^a-zA-Z]', '', response.text.split()[0])
+        # ניקוי המילה מכל תו שאינו אותיות באנגלית
+        raw_keyword = response.text.strip().split()[0]
+        keyword = re.sub(r'[^a-zA-Z]', '', raw_keyword)
+        
+        # יצירת ה-URL הישיר לאיור
         image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
         
         return {"image_url": image_url, "keyword": keyword, "status": "success"}
