@@ -13,7 +13,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.post("/generate")
@@ -22,25 +21,23 @@ async def generate(request: Request):
         data = await request.json()
         user_text = data.get("text", "")
         
-        # דילוג על מקטעים קצרים מדי
         if len(user_text) < 10:
-            return {"status": "waiting", "message": "More text needed"}
+            return {"status": "waiting"}
 
         model = genai.GenerativeModel('gemini-1.5-flash')
-        # הוראה מפורשת למודל להוציא רק מילה אחת באנגלית
-        prompt = f"Summary this text into EXACTLY ONE simple English noun for an image: {user_text}"
+        # הוראה למודל להוציא רק מילה אחת באנגלית שמתארת את הנושא
+        prompt = f"Summarize this text into EXACTLY ONE English noun for image generation: {user_text}"
         response = model.generate_content(prompt)
         
-        # ניקוי המילה מכל תו שאינו אותיות באנגלית
-        raw_keyword = response.text.strip().split()[0]
-        keyword = re.sub(r'[^a-zA-Z]', '', raw_keyword)
+        # ניקוי המילה מכל תו שאינו אותיות
+        keyword = re.sub(r'[^a-zA-Z]', '', response.text.strip().split()[0])
         
-        # יצירת ה-URL הישיר לאיור
+        # שימוש במחולל תמונות יציב (Pollinations)
         image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
         
-        return {"image_url": image_url, "keyword": keyword, "status": "success"}
+        return {"image_url": image_url, "keyword": keyword}
     except Exception as e:
-        return {"error": str(e), "status": "failed"}
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
