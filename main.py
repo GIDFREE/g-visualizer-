@@ -12,7 +12,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת Gemini עם המפתח שלך
+# הגדרת Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.post("/generate")
@@ -21,16 +21,15 @@ async def generate(request: Request):
         data = await request.json()
         user_text = data.get("text", "")
         
-        if not user_text:
-            return {"error": "No text provided"}
+        if not user_text or len(user_text) < 5:
+            return {"error": "Text too short"}
 
         model = genai.GenerativeModel('gemini-1.5-flash')
-        # הפקודה ליצירת מילת מפתח אחת באנגלית מכל מקטע טקסט
-        prompt = f"Convert this text into ONE simple English noun for image generation: {user_text}"
+        # הפקודה שמזקקת מקטע טקסט למילת מפתח אחת באנגלית
+        prompt = f"Summarize this lecture snippet into ONE simple English noun for image generation: {user_text}"
         response = model.generate_content(prompt)
         
-        # ניקוי המילה מסימנים מיותרים
-        keyword = response.text.strip().split()[0]
+        keyword = response.text.strip().split()[0].replace(".", "").replace(",", "")
         image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
         
         return {"image_url": image_url, "keyword": keyword}
@@ -39,6 +38,5 @@ async def generate(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    # שימוש בפורט ש-Render דורש
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
