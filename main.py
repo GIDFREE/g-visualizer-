@@ -2,10 +2,11 @@ import os
 import google.generativeai as genai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 app = FastAPI()
 
-# פתיחת חסימות דפדפן (CORS) - קריטי לעבודה מהלפטופ
+# פתיחת חסימות דפדפן (CORS) - מאפשר ל-HTML בלפטופ לתקשר עם השרת ב-Render
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,33 +14,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת ה-API Key של Gemini
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+# חיבור למפתח ה-API שהגדרת ב-Render תחת השם GEMINI_API_KEY
+api_key = os.environ.get("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
 
 @app.get("/")
-async def health():
-    return {"status": "G-Visualizer Online"}
+async def root():
+    return {"status": "G-Visualizer Server is Online"}
 
 @app.post("/generate")
 async def generate(request: Request):
     try:
         data = await request.json()
-        text = data.get("text", "")
+        user_text = data.get("text", "")
         context = data.get("context", "general")
         
-        # זיקוק המשפט למילה אחת באנגלית בעזרת Gemini
+        # לוגיקת זיקוק: הופכת את המשפט שלך למילת מפתח אחת באנגלית בעזרת Gemini
         model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Topic: {context}. Speaker said: '{text}'. Return ONLY one English noun for an image."
+        prompt = f"Topic: {context}. Speaker said: '{user_text}'. Return ONLY one English noun representing this."
         
         response = model.generate_content(prompt)
-        # ניקוי המילה מרווחים או נקודות
-        keyword = response.text.strip().split()[0].replace(".", "").lower()
+        # ניקוי התשובה מסימני פיסוק ורווחים מיותרים
+        keyword = response.text.strip().split()[0].replace(".", "").replace(",", "").lower()
         
-        # בניית הכתובת למנוע האיורים
+        # יצירת הכתובת למנוע האיורים Pollinations
         image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
         
-        # החזרת נתונים בשמות שתואמים ל-HTML
         return {"image_url": image_url, "keyword": keyword}
         
     except Exception as e:
-        return {"error": str(e), "image_url": "https://pollinations.ai/p/error?width=1024", "keyword": "error"}
+        # במקרה של תקלה (למשל מפתח API לא תקין), נחזיר תמונת שגיאה גנרית
+        return {"error": str(e), "image_url": "https://pollinations.ai/p/error_icon?width=1024", "keyword": "error"}
+
+if __name__ == "__main__":
+    # הגדרת פורט דינמי עבור Render
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
