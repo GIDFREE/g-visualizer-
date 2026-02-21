@@ -6,7 +6,7 @@ import uvicorn
 
 app = FastAPI()
 
-# פתיחת חסימות דפדפן
+# מאפשר ללפטופים של מרצים שונים לתקשר עם השרת שלך
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,14 +14,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת המפתח מה-Environment של Render
+# הגדרת Gemini עם המפתח מה-Environment של Render
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
-
-@app.get("/")
-async def root():
-    return {"status": "G-Visualizer Online"}
 
 @app.post("/generate")
 async def generate(request: Request):
@@ -30,21 +26,20 @@ async def generate(request: Request):
         user_text = data.get("text", "")
         context = data.get("context", "general")
         
-        # שימוש במודל היציב ביותר ללא סיומות בטא למניעת שגיאת 404
+        # שימוש במודל היציב למניעת שגיאת 404
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        prompt = f"Topic: {context}. Speaker said: '{user_text}'. Return ONLY one English noun for an image."
+        prompt = f"Context: {context}. User said: '{user_text}'. Return ONLY one English noun for an image."
         
-        # יצירת התוכן
         response = model.generate_content(prompt)
-        # זיקוק המילה
+        # ניקוי המילה שהתקבלה
         keyword = response.text.strip().split()[0].replace(".", "").lower()
         
+        # כתובת למנוע האיורים (ללא לוגו ועם רזולוציה מתאימה)
         image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
         return {"image_url": image_url, "keyword": keyword}
         
     except Exception as e:
-        # החזרת הודעת שגיאה מפורטת ל-Debug Log בלפטופ
         return {"error": str(e), "keyword": "error"}
 
 if __name__ == "__main__":
