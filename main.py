@@ -6,7 +6,7 @@ import uvicorn
 
 app = FastAPI()
 
-# פתיחת חסימות דפדפן (CORS)
+# פתיחת חסימות דפדפן
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת ה-API Key מה-Environment Variables ב-Render
+# הגדרת המפתח מה-Environment של Render
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
@@ -30,19 +30,21 @@ async def generate(request: Request):
         user_text = data.get("text", "")
         context = data.get("context", "general")
         
-        # שימוש במודל היציב ללא ציון גרסת בטא למניעת שגיאת 404
+        # שימוש במודל היציב ביותר ללא סיומות בטא למניעת שגיאת 404
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        prompt = f"Context: {context}. Speaker said: '{user_text}'. Return ONLY one English noun for an image."
+        prompt = f"Topic: {context}. Speaker said: '{user_text}'. Return ONLY one English noun for an image."
         
+        # יצירת התוכן
         response = model.generate_content(prompt)
-        # ניקוי המילה
+        # זיקוק המילה
         keyword = response.text.strip().split()[0].replace(".", "").lower()
         
         image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
         return {"image_url": image_url, "keyword": keyword}
         
     except Exception as e:
+        # החזרת הודעת שגיאה מפורטת ל-Debug Log בלפטופ
         return {"error": str(e), "keyword": "error"}
 
 if __name__ == "__main__":
