@@ -7,10 +7,10 @@ import uvicorn
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# הגדרת Gemini בצורה יציבה
+# הגדרת המפתח והגרסה היציבה (v1) למניעת שגיאת 404
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
-    genai.configure(api_key=api_key)
+    genai.configure(api_key=api_key, transport='rest') # שימוש ב-REST למניעת בעיות חיבור
 
 @app.post("/generate")
 async def generate(request: Request):
@@ -19,9 +19,9 @@ async def generate(request: Request):
         text = data.get("text", "")
         context = data.get("context", "general")
         
-        # שימוש במודל היציב ביותר למניעת שגיאת 404
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Topic: {context}. User said: '{text}'. Extract ONE descriptive English noun."
+        # פנייה למודל בגרסה היציבה
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        prompt = f"Topic: {context}. Speaker said: '{text}'. Extract ONE descriptive English noun."
         
         response = model.generate_content(prompt)
         keyword = response.text.strip().split()[0].replace(".", "").lower()
