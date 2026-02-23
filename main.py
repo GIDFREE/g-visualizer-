@@ -32,4 +32,12 @@ async def generate(request: Request):
         response = model.generate_content(prompt)
         keyword = response.text.strip().split()[0].replace(".", "").lower()
         return {
-            "image_url": f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nol
+            "image_url": f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true",
+            "keyword": keyword
+        }
+    except Exception as e:
+        return {"error": str(e), "keyword": "error"}
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
