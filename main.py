@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+from google import genai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -7,10 +7,9 @@ import uvicorn
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# חיבור למפתח מה-Environment ב-Render
-api_key = os.environ.get("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
+@app.get("/")
+async def root():
+    return {"status": "G-Visualizer Online"}
 
 @app.post("/generate")
 async def generate(request: Request):
@@ -18,18 +17,22 @@ async def generate(request: Request):
         data = await request.json()
         text = data.get("text", "")
         context = data.get("context", "general")
-        
-        # שימוש במודל היציב ביותר למניעת שגיאת 404
-        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        api_key = os.environ.get("GEMINI_API_KEY")
+        client = genai.Client(api_key=api_key)
+
         prompt = f"Topic: {context}. Speaker said: '{text}'. Return ONLY one English noun for an image."
-        
-        response = model.generate_content(prompt)
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+
         keyword = response.text.strip().split()[0].replace(".", "").lower()
-        
-        return {
-            "image_url": f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true",
-            "keyword": keyword
-        }
+        image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
+
+        return {"image_url": image_url, "keyword": keyword}
+
     except Exception as e:
         return {"error": str(e), "keyword": "error"}
 
