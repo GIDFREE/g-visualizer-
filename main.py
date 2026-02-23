@@ -7,10 +7,14 @@ import uvicorn
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# חיבור למפתח מה-Environment ב-Render
+# הגדרת ה-API Key מה-Environment ב-Render
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
+
+@app.get("/")
+async def root():
+    return {"status": "G-Visualizer Online"}
 
 @app.post("/generate")
 async def generate(request: Request):
@@ -19,7 +23,7 @@ async def generate(request: Request):
         text = data.get("text", "")
         context = data.get("context", "general")
         
-        # כפיית המודל היציב
+        # שימוש במודל היציב gemini-1.5-flash
         model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"Topic: {context}. Speaker said: '{text}'. Return ONLY one English noun for an image."
         
