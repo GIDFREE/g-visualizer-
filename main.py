@@ -6,7 +6,7 @@ import uvicorn
 
 app = FastAPI()
 
-# פתיחת חסימות דפדפן (CORS) - קריטי לעבודה מהלפטופ
+# פתיחת חסימות דפדפן (CORS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# הגדרת המפתח מה-Environment של Render
+# הגדרת ה-API Key מה-Environment Variables ב-Render
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
@@ -30,17 +30,15 @@ async def generate(request: Request):
         user_text = data.get("text", "")
         context = data.get("context", "general")
         
-        # שימוש במודל היציב gemini-1.5-flash
+        # שימוש במודל בגרסה היציבה ביותר
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # הנחיה לזיקוק המשפט למילה אחת באנגלית
         prompt = f"Topic: {context}. Speaker said: '{user_text}'. Return ONLY one English noun for an image."
         
         response = model.generate_content(prompt)
-        # ניקוי המילה שהתקבלה
-        keyword = response.text.strip().split()[0].replace(".", "").lower()
+        # ניקוי התשובה מסימני פיסוק
+        keyword = response.text.strip().split()[0].replace(".", "").replace(",", "").lower()
         
-        # בניית הכתובת למנוע האיורים
         image_url = f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true"
         return {"image_url": image_url, "keyword": keyword}
         
