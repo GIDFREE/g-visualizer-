@@ -7,6 +7,7 @@ import uvicorn
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# הגדרת ה-API Key מה-Environment
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
@@ -15,14 +16,22 @@ if api_key:
 async def generate(request: Request):
     try:
         data = await request.json()
-        # שימוש במודל היציב ללא v1beta למניעת שגיאת 404
+        user_text = data.get("text", "")
+        context = data.get("context", "general")
+        
+        # שימוש במודל היציב
         model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Topic: {data.get('context', 'general')}. Text: {data.get('text', '')}. One English noun."
+        prompt = f"Topic: {context}. Speaker said: '{user_text}'. Return ONLY one English noun for an image."
+        
         response = model.generate_content(prompt)
         keyword = response.text.strip().split()[0].replace(".", "").lower()
-        return {"image_url": f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true", "keyword": keyword}
+        
+        return {
+            "image_url": f"https://pollinations.ai/p/{keyword}?width=1024&height=1024&nologo=true",
+            "keyword": keyword
+        }
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e), "keyword": "error"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
