@@ -7,9 +7,10 @@ import uvicorn
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# שימוש במפתח ה-API מה-Environment של Render
+# הגדרת המפתח מה-Environment ב-Render
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
+    # הגדרה ללא v1beta - התיקון הקריטי לשגיאת 404
     genai.configure(api_key=api_key)
 
 @app.get("/")
@@ -23,11 +24,12 @@ async def generate(request: Request):
         user_text = data.get("text", "")
         context = data.get("context", "general")
         
-        # שימוש במודל היציב ללא נתיבי בטא למניעת שגיאת 404
+        # שימוש במודל היציב gemini-1.5-flash
         model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"Topic: {context}. Speaker said: '{user_text}'. Return ONLY one English noun for an image."
         
         response = model.generate_content(prompt)
+        # זיקוק מילת המפתח לאיור
         keyword = response.text.strip().split()[0].replace(".", "").lower()
         
         return {
