@@ -7,15 +7,10 @@ import uvicorn
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# הגדרת המפתח מה-Environment ב-Render
+# הגדרת המפתח ללא ציון v1beta - זה יפתור את שגיאת ה-404
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
-    # הגדרה ללא v1beta - התיקון הקריטי לשגיאת 404
     genai.configure(api_key=api_key)
-
-@app.get("/")
-async def root():
-    return {"status": "G-Visualizer Live"}
 
 @app.post("/generate")
 async def generate(request: Request):
@@ -29,7 +24,7 @@ async def generate(request: Request):
         prompt = f"Topic: {context}. Speaker said: '{user_text}'. Return ONLY one English noun for an image."
         
         response = model.generate_content(prompt)
-        # זיקוק מילת המפתח לאיור
+        # זיקוק מילת המפתח
         keyword = response.text.strip().split()[0].replace(".", "").lower()
         
         return {
@@ -37,7 +32,7 @@ async def generate(request: Request):
             "keyword": keyword
         }
     except Exception as e:
-        return {"error": str(e), "keyword": "error"}
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
